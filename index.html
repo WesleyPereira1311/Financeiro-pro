@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Orçamento Profissional</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1e3f 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .income { color: var(--success); }
+        .expense { color: var(--danger); }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 0.9fr;
+            gap: 20px;
+        }
+
+        .section {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h2 { margin-bottom: 15px; font-size: 1.1rem; color: #cbd5e1; text-align: center;}
+        h4 { margin: 12px 0 6px; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .category-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+
+        .category-chip {
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+        }
+
+        .category-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+        .btn-add-custom { border: 1px dashed var(--primary) !important; color: var(--primary); font-weight: bold; }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .transaction-list { list-style: none; max-height: 450px; overflow-y: auto; }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .item-expense { border-left: 3px solid var(--danger); }
+        .item-income { border-left: 3px solid var(--success); }
+
+        .delete-btn { background: none; border: none; color: #64748b; cursor: pointer; margin-left: 10px;}
+
+        #chart-container { height: 280px; width: 100%; margin-top: 20px; }
+
+        @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 1.6rem;">💰 Gestor Financeiro</h1>
+    </header>
+
+    <div class="summary">
+        <div class="card"><h4>Entradas</h4><p id="total-income" class="income">R$ 0,00</p></div>
+        <div class="card"><h4>Saídas</h4><p id="total-expense" class="expense">R$ 0,00</p></div>
+        <div class="card"><h4>Saldo</h4><p id="total-balance">R$ 0,00</p></div>
+    </div>
+
+    <div class="main-grid">
+        <section class="section">
+            <h2>Lançar Movimentação</h2>
+            
+            <h4>💵 Ganhos</h4>
+            <div class="category-group" id="group-income">
+                <div class="category-chip active" data-type="income">Salário</div>
+                <div class="category-chip" data-type="income">Renda Extra</div>
+                <div class="category-chip" data-type="income">Investimentos</div>
+                <div class="category-chip btn-add-custom" onclick="addCustom('income')">+</div>
+            </div>
+
+            <h4>🔒 Gastos Fixos (Essenciais)</h4>
+            <div class="category-group" id="group-fixed">
+                <div class="category-chip" data-type="expense">Aluguel/Parcela Casa</div>
+                <div class="category-chip" data-type="expense">Condomínio</div>
+                <div class="category-chip" data-type="expense">Luz/Água/Gás</div>
+                <div class="category-chip" data-type="expense">Internet/Celular</div>
+                <div class="category-chip" data-type="expense">Educação/Escola</div>
+                <div class="category-chip" data-type="expense">Plano de Saúde</div>
+                <div class="category-chip" data-type="expense">Assinaturas Fixas</div>
+                <div class="category-chip btn-add-custom" onclick="addCustom('expense')">+</div>
+            </div>
+
+            <h4>🌀 Gastos Variáveis (Lifestyle)</h4>
+            <div class="category-group" id="group-variable">
+                <div class="category-chip" data-type="expense">Supermercado</div>
+                <div class="category-chip" data-type="expense">Restaurantes/Delivery</div>
+                <div class="category-chip" data-type="expense">Combustível/Transporte</div>
+                <div class="category-chip" data-type="expense">Lazer/Viagens</div>
+                <div class="category-chip" data-type="expense">Farmácia/Beleza</div>
+                <div class="category-chip" data-type="expense">Compras/Vestuário</div>
+                <div class="category-chip" data-type="expense">Manutenção/Reparos</div>
+                <div class="category-chip btn-add-custom" onclick="addCustom('expense')">+</div>
+            </div>
+
+            <input type="number" id="amount" placeholder="Valor R$ 0,00" step="0.01">
+            <button class="add-btn" id="add-btn">Confirmar Lançamento</button>
+        </section>
+
+        <section class="section">
+            <h2>Distribuição de Gastos</h2>
+            <div id="chart-container">
+                <canvas id="expenseChart"></canvas>
+            </div>
+            <p id="no-data" style="text-align: center; color: #64748b; margin-top: 50px; display: none;">Adicione despesas para ver o gráfico.</p>
+        </section>
+
+        <section class="section">
+            <h2>Histórico Recente</h2>
+            <ul id="transaction-list" class="transaction-list"></ul>
+        </section>
+    </div>
+</div>
+
+<script>
+    const amountInput = document.getElementById('amount');
+    const addBtn = document.getElementById('add-btn');
+    const transactionList = document.getElementById('transaction-list');
+    
+    let selectedCategory = "Salário";
+    let selectedType = "income";
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let myChart = null;
+
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('category-chip') && !e.target.classList.contains('btn-add-custom')) {
+            document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
+            e.target.classList.add('active');
+            selectedCategory = e.target.innerText;
+            selectedType = e.target.getAttribute('data-type');
+        }
+    });
+
+    function addCustom(type) {
+        const name = prompt("Nome da categoria:");
+        if (name) {
+            const container = e.target ? e.target.parentElement : document.querySelector(`[data-type="${type}"]`).parentElement;
+            const chip = document.createElement('div');
+            chip.className = 'category-chip active';
+            chip.setAttribute('data-type', type);
+            chip.innerText = name;
+            document.querySelectorAll('.category-chip').forEach(c => c.classList.remove('active'));
+            container.insertBefore(chip, container.lastElementChild);
+            selectedCategory = name;
+            selectedType = type;
+        }
+    }
+
+    function updateChart() {
+        const expenseData = {};
+        const expenses = transactions.filter(t => t.type === 'expense');
+
+        if (expenses.length === 0) {
+            if (myChart) myChart.destroy();
+            document.getElementById('expenseChart').style.display = 'none';
+            document.getElementById('no-data').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('expenseChart').style.display = 'block';
+        document.getElementById('no-data').style.display = 'none';
+
+        expenses.forEach(t => {
+            expenseData[t.desc] = (expenseData[t.desc] || 0) + t.amount;
+        });
+
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(expenseData),
+                datasets: [{
+                    data: Object.values(expenseData),
+                    backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#f87171'],
+                    hoverOffset: 10,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                let total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                let perc = ((ctx.raw * 100) / total).toFixed(1);
+                                return ` R$ ${ctx.raw.toFixed(2)} (${perc}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateUI() {
+        const amounts = transactions.map(t => t.type === 'income' ? t.amount : -t.amount);
+        const total = amounts.reduce((acc, item) => acc + item, 0).toFixed(2);
+        const income = amounts.filter(v => v > 0).reduce((a, b) => a + b, 0).toFixed(2);
+        const expense = Math.abs(amounts.filter(v => v < 0).reduce((a, b) => a + b, 0)).toFixed(2);
+
+        document.getElementById('total-balance').innerText = `R$ ${total.replace('.', ',')}`;
+        document.getElementById('total-income').innerText = `R$ ${income.replace('.', ',')}`;
+        document.getElementById('total-expense').innerText = `R$ ${expense.replace('.', ',')}`;
+        document.getElementById('total-balance').style.color = total >= 0 ? 'var(--success)' : 'var(--danger)';
+
+        transactionList.innerHTML = '';
+        transactions.slice().reverse().forEach(t => {
+            const li = document.createElement('li');
+            li.className = `transaction-item ${t.type === 'income' ? 'item-income' : 'item-expense'}`;
+            li.innerHTML = `
+                <span><b>${t.desc}</b><br><small>${new Date(t.id).toLocaleDateString()}</small></span>
+                <span>R$ ${t.amount.toFixed(2).replace('.', ',')} <button class="delete-btn" onclick="remove(${t.id})">✕</button></span>
+            `;
+            transactionList.appendChild(li);
+        });
+
+        updateChart();
+    }
+
+    addBtn.addEventListener('click', () => {
+        const val = parseFloat(amountInput.value);
+        if (!val || val <= 0) return alert("Insira um valor válido.");
+        transactions.push({ id: Date.now(), desc: selectedCategory, amount: val, type: selectedType });
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        amountInput.value = '';
+        updateUI();
+    });
+
+    window.remove = (id) => {
+        transactions = transactions.filter(t => t.id !== id);
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        updateUI();
+    };
+
+    updateUI();
+</script>
+</body>
+</html>
